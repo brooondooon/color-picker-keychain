@@ -1,0 +1,27 @@
+# PlatformIO
+firmware/.pio/
+firmware/.vscode/
+
+# Expo / React Native
+app/node_modules/
+app/.expo/
+app/dist/
+app/ios/
+app/android/
+app/web-build/
+app/*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.local
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
