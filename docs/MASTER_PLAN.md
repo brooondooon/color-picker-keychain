@@ -12,8 +12,8 @@ Point at anything. Press a button. Capture the color.
 The device works at any distance — hold it against a fabric swatch or aim it at the sky.
 A live color preview on the device shifts in real-time as you sweep around, so you always
 know what you're reading. Press the clicky, satisfying button to lock in the color. The
-hex code and a human-readable name appear on-screen. Spin the mechanical scroll wheel
-(with tactile detent clicks) to browse your saved palette. Sync everything to the companion
+hex code and a human-readable name appear on-screen. Spin the side crown
+(with tactile detent clicks) to browse your saved palette — like an Apple Watch dial. Sync everything to the companion
 phone app for a full library, AI-generated color names, and smart light control.
 
 It should feel like a premium fidget toy that also happens to be genuinely useful.
@@ -44,7 +44,7 @@ interactions. The kind of object that belongs in the MoMA Design Store.
 4. Press the SCAN button (satisfying click) to capture
 5. Display shows: [color blob] + #FF5A2B + "Burnt Sienna"
 6. Color is saved to on-device palette (last ~20 colors)
-7. Spin the scroll wheel to browse your saved palette — each detent = next color
+7. Spin the side crown to browse your saved palette — each detent = next color
 8. Colors auto-sync to phone app over Bluetooth when in range
 ```
 
@@ -52,12 +52,30 @@ interactions. The kind of object that belongs in the MoMA Design Store.
 | Input | Type | Feel | Action |
 |-------|------|------|--------|
 | **Scan button** | Dedicated tactile push button (Kailh/Alps micro) | Satisfying, clicky, high-quality snap | PRIMARY: capture a color |
-| **Scroll wheel** | Rotary encoder (EC11) with mechanical detents | Notched clicks — each click = next color | Browse saved palette |
-| **Scroll wheel press** | Built-in push button on encoder shaft | Softer click | SECONDARY: delete color / toggle mode |
+| **Side crown spinner** | Rotary encoder (EC11) mounted on device edge | Notched detent clicks — each click = next color. Thumb-scrollable like Apple Watch crown. | Browse saved palette |
+| **Encoder push** | Built-in push button on encoder shaft | Softer click | SECONDARY: delete color / toggle mode |
 
 The scan button is a **dedicated, separate control** — not overloaded onto the encoder push.
 This follows the Teenage Engineering philosophy: the primary interaction deserves its own
 purposeful, premium-feeling input. The encoder push handles secondary actions only.
+
+#### Spinner Form Factor Decision (DECIDED: Side Crown)
+
+Considered two approaches:
+1. **Flat vinyl disc** — large circular disc on device face, spin like a DJ jog wheel / iPod
+2. **Side crown** — encoder mounted on device edge, scroll with thumb like Apple Watch
+
+**Chose side crown because:**
+- **One-handed use:** You hold the device and point the camera with the same hand that
+  scrolls. A face-mounted disc requires two hands (one to hold, one to spin).
+- **Device stays small:** A vinyl disc would dominate the face, competing with the screen
+  and scan button for space. The crown lives on the edge, costs zero face real estate.
+- **Proven ergonomics:** Apple Watch, iPod nano 6th gen, and Teenage Engineering Pocket
+  Operators all use side-mounted controls on small devices for this exact reason.
+- **Same satisfying detent clicks** — the encoder is identical, only the mounting changes.
+
+The encoder part (KY-040) is the same for both approaches. This decision only affects
+the enclosure design in Phase 5+. Prototype on breadboard works identically either way.
 
 ### 3.3 Device Display (DECIDED: Color TFT)
 - **0.96" ST7735 color TFT** (80x160 pixels, SPI interface)
@@ -211,18 +229,50 @@ app/
   src/
     screens/
       HomeScreen        — Connected device status, quick scan trigger
-      PaletteScreen     — Full color library (grid/list view)
+      PaletteScreen     — Full color library (blob/grid view)
       ColorDetailScreen — Single color: hex, RGB, HSL, name, rename, send to lights
       LightsScreen      — Smart light connections and control
       SettingsScreen    — Device settings, account, subscription
+    components/
+      ColorBlob.tsx     — Organic paint-blob color swatch with neobrutalist border
+      BrutCard.tsx      — Reusable card component (thick border + offset shadow)
+      Header.tsx        — Screen header with bold typography
     services/
       ble.ts            — BLE connection, color receive, device management
       colorNames.ts     — Built-in name DB + AI naming API calls
       lightsAPI.ts      — Smart light integrations (Hue, LIFX, Govee)
       supabase.ts       — Auth, cloud sync, user data
+      storage.ts        — Local color storage (AsyncStorage, no auth for MVP)
     utils/
       colorConvert.ts   — RGB/Hex/HSL/LAB conversion utilities
+      mockData.ts       — Sample colors for development (remove when device ready)
 ```
+
+#### App Design Language (DECIDED: Japanese Neobrutalism)
+
+**Inspiration:** Neobrutalist structure meets Japanese minimalism. Muji meets manga ink.
+Bold black borders and offset shadows, but restrained — lots of whitespace, clean geometry,
+nothing wasted. The captured colors are the ONLY loud element. Everything else is quiet:
+black, white, and disciplined typography.
+
+**Core design rules:**
+1. **Thick black borders** (2-3px) on cards and containers — the structural ink
+2. **Solid black offset drop shadows** (e.g. 3px right, 3px down) — NOT blurred, NOT playful
+3. **Captured colors are the only color** — UI chrome is strictly black/white/off-white
+4. **Generous whitespace** — let elements breathe, Japanese spatial discipline
+5. **Dark background** (#000 or #0A0A0A) — colors pop against darkness
+6. **Monospace or geometric sans typography** — clean, technical, minimal. No bubbly fonts.
+7. **Organic shapes for color swatches** — paint blobs with bold ink outlines, not perfect squares
+   (explore multiple display styles: blobs, grid, list — let users toggle)
+8. **Card-based layout** — manga panel structure, clean grid with thick ink borders
+9. **No decorative UI elements** — no gradients, no emoji, no illustrations. Just ink and color.
+10. **Quiet interactions** — subtle press states, no bouncy animations. Deliberate and precise.
+
+**Palette display styles to explore:**
+- **Paint blobs** — organic, irregular shapes filled with captured color + black outline
+- **Color grid** — neobrutalist squares with thick borders and offset shadows
+- **List view** — color swatch + hex + name in a card row
+- Let user toggle between styles (stretch goal)
 
 **Key features:**
 - BLE auto-connect when device is nearby
@@ -261,7 +311,7 @@ app/
 | **BLE connection flaky** | MEDIUM | Use well-tested ESP32 BLE libraries. Implement retry/reconnect logic. Store colors locally first, sync when possible. |
 | **Miniaturization hard for a beginner** | HIGH | Phase 1-3 are on a dev board (not miniaturized). Only tackle enclosure/PCB design in Phase 5 after everything works. |
 | **3D printing without a printer** | LOW | Use online services (JLCPCB 3D printing is cheap, ~$2-5 per piece). Or local library/makerspace. |
-| **Scroll wheel mechanical integration** | MEDIUM | Use an off-the-shelf EC11 rotary encoder. Tons of tutorials. The shaft pokes through the enclosure wall. |
+| **Side crown mechanical integration** | MEDIUM | Use an off-the-shelf EC11 rotary encoder mounted sideways. The shaft pokes through the enclosure edge wall. Tons of tutorials for encoder mounting. |
 
 ---
 
@@ -291,13 +341,48 @@ app/
 - Display updates to show each saved color as you scroll
 - **Success = scan 10 colors, scroll through them with satisfying clicks**
 
-### Phase 4: BLE + Phone App MVP (Week 2-3)
-**Goal:** Colors sync to a phone app over Bluetooth.
-- Implement BLE GATT service on ESP32 (advertise, send color data)
-- Scaffold React Native / Expo app
-- Implement BLE scanning + connection in app
-- Receive colors → display in a palette grid
-- Add color detail view (hex, RGB, HSL, name)
+### Phase 4: Phone App MVP — Pre-Device (NOW, while parts ship)
+**Goal:** Build the app UI with mock data so it's ready to receive real colors.
+
+**Chunk 1: Foundation (~Day 1)**
+- Install React Navigation (stack navigator)
+- Set up navigation: Home → Palette flow
+- Create design system components: BrutCard (neobrutalist card), ColorBlob (organic paint swatch)
+- Define theme constants (colors, borders, shadows, typography)
+- Add mock color data (15 sample colors with hex codes and names)
+- Set up local storage (AsyncStorage) for color persistence
+
+**Chunk 2: Home Screen (~Day 1-2)**
+- Device connection status card (disconnected state for now)
+- "Last scanned" color display (large blob with hex + name)
+- Quick-access recent colors row
+- "Connect Device" button (placeholder until BLE)
+- Neobrutalist styling: thick borders, offset shadows, bold type
+
+**Chunk 3: Palette Screen (~Day 2-3)**
+- Paint blob display mode: organic shapes with thick black outlines, scattered layout
+- Grid display mode: neobrutalist color squares with offset shadows
+- Toggle between blob/grid views
+- Tap a color → navigate to detail (stretch: add detail screen)
+- Copy hex to clipboard on long-press
+- Empty state: "No colors yet — connect your device"
+
+**Chunk 4: Polish & Interaction (~Day 3)**
+- Tap animations (press-in effect on blobs/cards)
+- Smooth transitions between screens
+- Haptic feedback on interactions
+- Pull-to-refresh gesture (for future BLE sync)
+- Test on physical iPhone and/or Android device
+
+**Success = app looks and feels great with mock data. Ready to swap in real BLE data when device arrives.**
+
+### Phase 4b: BLE Integration (When parts arrive)
+**Goal:** Connect app to real device over Bluetooth.
+- Install @sfourdrinier/react-native-ble-plx
+- Run `npx expo prebuild` for development build
+- Implement BLE scanning + connection on Home screen
+- Receive color notifications → add to palette in real-time
+- Read full palette from device on connect
 - **Success = scan a color on device, see it appear on phone within seconds**
 
 ### Phase 5: App Features (Week 3-4)
@@ -308,6 +393,8 @@ app/
 - User rename capability
 - Palette organization (folders/tags)
 - Export palette (image swatch, JSON)
+- Color detail screen (hex, RGB, HSL, name, copy, share)
+- Settings screen
 
 ### Phase 6: Enclosure + Miniaturization (Week 4+)
 **Goal:** A device that looks and feels like a product, not a breadboard.
@@ -332,14 +419,14 @@ Order these ASAP — most ship in 1-3 days from Amazon.
 
 | # | Item | Link | Est. Cost | Critical Notes |
 |---|------|------|-----------|----------------|
-| 1 | **Seeed XIAO ESP32S3 Sense (Pre-Soldered)** | [Amazon](https://www.amazon.com/Seeed-Studio-XIAO-ESP32-Sense/dp/B0C69FFVHH) | ~$16 | **VERIFY** listing says "Sense" + "OV2640 camera" (or OV3660). Pre-soldered = pin headers attached = plugs into breadboard with zero soldering. If out of stock, the [non-pre-soldered version](https://www.amazon.com/Seeed-Studio-XIAO-ESP32S3-Sense/dp/B0C33N99BX) works but needs header pins soldered on. |
-| 2 | **0.96" ST7735 TFT Display** (80x160, 8-pin, SPI) | [Amazon](https://www.amazon.com/Rakstore-Display-80x160-ST7735-Drive/dp/B09WQSF1P8) | ~$4 | Must be the 8-pin breakout board version (not bare display). Verify it has pre-soldered pin headers in the product photos. 3.3V operation — direct compatible. |
-| 3 | **KY-040 Rotary Encoder Module** (NOT bare EC11) | [Amazon](https://www.amazon.com/WayinTop-Encoder-Potentiometer-Electronics-Projects/dp/B08728K3YB) | ~$7 | **Must be KY-040 breakout module** with 5 header pins (CLK, DT, SW, +, GND). Has built-in 10k pull-ups. Plugs directly into breadboard. A bare EC11 encoder WILL NOT fit a breadboard. |
-| 4 | **Tactile Push Buttons** (assortment) | [Amazon](https://www.amazon.com/Tactile-Momentary-Assortment-Kit-200-Switches/dp/B0723BG637) | ~$8 | 200pc assortment with 10 heights. Find the click feel you like. For final product, upgrade to Kailh/Alps micro switch. |
-| 5 | **Breadboard + Jumper Wire Kit** | [Amazon](https://www.amazon.com/Smraza-Breadboard-Resistors-Mega2560-Raspberry/dp/B01HRR7EBG) | ~$10 | Includes breadboard, male-to-male jumper wires, resistors, LEDs. Everything needed for prototyping. |
+| 1 | **Seeed XIAO ESP32S3 Sense (Pre-Soldered)** | [Amazon B0DRNW6KMG](https://www.amazon.com/Seeed-Studio-ESP32S3-Sense-Pre-Soldered/dp/B0DRNW6KMG) | ~$15 | **Must say "Pre-Soldered"** = pin headers attached = plugs into breadboard with zero soldering. Must include OV2640 or OV3660 camera. If out of stock, the [non-pre-soldered version](https://www.amazon.com/Seeed-Studio-XIAO-ESP32S3-Sense/dp/B0C33N99BX) works but needs header pins soldered on. **WARNING:** ASIN B0C69FFVHH is NOT pre-soldered despite similar names. |
+| 2 | **0.96" ST7735 TFT Display** (80x160, 8-pin, SPI) | [Amazon B09WQSF1P8](https://www.amazon.com/Rakstore-Display-80x160-ST7735-Drive/dp/B09WQSF1P8) | ~$4-8 | Must be the 8-pin breakout board version (not bare display). Verify it has pre-soldered pin headers in the product photos. 3.3V operation — direct compatible. |
+| 3 | **KY-040 Rotary Encoder Module 2-pack** (spinner dial + click) | [Amazon B07M631J1Q](https://www.amazon.com/Maxmoral-Encoder-Degrees-Compatible-Development/dp/B07M631J1Q) | ~$8 | **Must be KY-040 breakout module** with 5 header pins (CLK, DT, SW, +, GND). Has built-in 10k pull-ups. Plugs directly into breadboard. 2-pack gives you a spare. **WARNING:** ASIN B08728K3YB is bare EC11 — will NOT fit breadboard. |
+| 4 | **Tactile Push Buttons** (scan button, assortment) | [Amazon B0723BG637](https://www.amazon.com/Tactile-Momentary-Assortment-Kit-200-Switches/dp/B0723BG637) | ~$8 | 200pc assortment with 10 heights. Find the click feel you like. For final product, upgrade to Kailh/Alps micro switch. |
+| 5 | **Breadboard + Jumper Wire Kit** | [Amazon B09TX9CMG1](https://www.amazon.com/HUAREW-Breadboard-Wires%EF%BC%8CBattery-Clip%EF%BC%8C830-tie-Points/dp/B09TX9CMG1) | ~$9 | Includes 830-point breadboard, 400-point breadboard, 65 male-to-male jumper wires. Everything needed for prototyping. |
 | 6 | **USB-C data cable** | You probably have one | $0 | Must be a DATA cable, not charge-only. |
 
-**Phase 1-3 total: ~$45**
+**Phase 1-3 total: ~$44-48**
 
 ### Buy later (Phase 6+)
 | Item | Cost | Notes |
@@ -433,8 +520,9 @@ Then connect display VCC/BLK from red rail, all GNDs from blue rail. Keeps wirin
 
 ## 11. Open Questions
 
-### Resolved (10 of 15)
+### Resolved (11 of 16)
 - [x] Scan button vs encoder push → **Dedicated button.** TE design philosophy.
+- [x] Spinner form factor → **Side crown** (not flat vinyl disc). One-handed use, smaller device, proven ergonomics.
 - [x] React Native vs Flutter → **React Native / Expo.** Leverages JS/TS skills.
 - [x] Color TFT vs OLED + LED → **Color TFT.** Single-surface TE aesthetic.
 - [x] Color accuracy → **Genuinely accurate** with 3-layer calibration.
@@ -447,7 +535,7 @@ Then connect display VCC/BLK from red rail, all GNDs from blue rail. Keeps wirin
 
 ### Still Open (5)
 - [ ] Product name
-- [ ] Enclosure CAD design
+- [ ] Enclosure CAD design (side-mounted crown encoder, camera lens hole, display window)
 - [ ] FCC/CE certification requirements for BLE product sales
 - [ ] App store approval timeline
 - [ ] Patent landscape for handheld color picker devices
