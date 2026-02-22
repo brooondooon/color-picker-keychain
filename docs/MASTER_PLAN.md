@@ -84,12 +84,12 @@ Teenage Engineering-inspired aesthetic. A single, purposeful screen.
 | Component | Specific Part | Purpose | Est. Cost |
 |-----------|--------------|---------|-----------|
 | **Microcontroller** | ESP32-S3 (e.g. XIAO ESP32S3 Sense) | Brain — has camera interface, WiFi, BLE, enough processing power | ~$8-10 |
-| **Camera module** | OV2640 (built into XIAO Sense, or standalone) | Captures scene → firmware extracts center-region color | Included or ~$3 |
-| **Color display** | 0.96" 80x160 ST7735 TFT (or small IPS) | Shows color blob, hex code, color name. Capable of full RGB color. | ~$3-4 |
-| **Rotary encoder** | EC11 or similar with detents | Scroll wheel for browsing palette. Mechanical clicks, no motor needed. | ~$1-2 |
+| **Camera module** | OV2640 or OV3660 (built into XIAO Sense) | Captures scene → firmware extracts center-region color. Seeed may ship OV3660 on newer units — both work, no code change. | Included |
+| **Color display** | 0.96" 80x160 ST7735 TFT, 8-pin SPI breakout | Shows color blob, hex code, color name. Full RGB color. 3.3V logic. | ~$3-5 |
+| **Rotary encoder** | KY-040 module (EC11 on breakout PCB) | Scroll wheel for browsing palette. Built-in pull-up resistors. Breadboard-friendly headers. **Do NOT buy bare EC11 — it won't fit a breadboard.** | ~$1-2 |
 | **Scan button** | Tactile switch (quality, e.g. Kailh or Alps micro) | Satisfying click. The main interaction. | ~$0.50-1 |
-| **Battery** | LiPo 200-300mAh | Charge every 1-3 days with moderate use | ~$2-3 |
-| **Charge controller** | TP4056 or built-in on dev board | USB-C charging | ~$0-1 (often built-in) |
+| **Battery** | LiPo 250-400mAh with protection circuit | See power budget below — 250mAh is tight. Use a cell WITH built-in protection (the XIAO has no low-voltage cutoff). | ~$3-5 |
+| **Charge controller** | Built into XIAO (SGM40567) | USB-C charging built in. ~50-100mA charge rate. Red LED indicates charging. | $0 |
 | **Enclosure** | 3D printed (ordered online via JLCPCB, Shapeways, or PCBWay) | Keychain-sized shell, Tamagotchi-ish form factor | ~$3-5 per unit |
 
 **Estimated BOM per unit: ~$18-25**
@@ -107,7 +107,32 @@ A **camera module** (OV2640) solves this:
 - Live preview is natural — stream frames, compute center color, update display
 - Bonus: enables future palette-from-scene extraction (capture 5 colors from a photo)
 
-### 4.3 Form Factor
+### 4.3 Verified Pin Map
+
+Source: `arduino-esp32/variants/XIAO_ESP32S3/pins_arduino.h` (the compiler source of truth).
+
+```
+Pin   GPIO   Assignment           Component
+────  ─────  ───────────────────  ──────────────────
+D0    GPIO1  Scan button          Tactile push button
+D1    GPIO2  TFT_CS               ST7735 chip select (ONLY reliable CS pin)
+D2    GPIO3  Encoder CLK          KY-040 rotation A
+D3    GPIO4  TFT_DC               ST7735 data/command
+D4    GPIO5  TFT_RST              ST7735 reset
+D5    GPIO6  Encoder DT           KY-040 rotation B
+D6    GPIO43 Encoder SW           KY-040 push button (secondary action)
+D7    GPIO44 [DO NOT USE FOR SPI] UART RX — fails as SPI CS. Free for non-SPI use.
+D8    GPIO7  TFT_SCLK             ST7735 SPI clock
+D9    GPIO8  [FREE]               Available (SPI MISO — unused, ST7735 is write-only)
+D10   GPIO9  TFT_MOSI             ST7735 SPI data
+```
+
+**9 of 11 pins used. Camera uses internal GPIOs (10-18, 38-40, 47-48) — NO conflict.**
+
+**Key verification:** D10 = GPIO9 (NOT GPIO10). Camera XCLK = GPIO10 (internal only).
+These are different physical pins. Confirmed in `pins_arduino.h` source code.
+
+### 4.4 Form Factor
 - **Size target:** Tamagotchi / Flipper Zero Mini scale — roughly 50x40x15mm
 - **Not strict keychain-tiny** — small enough to clip to a bag or keyring, big enough to be comfortable and house the display + wheel
 - **Lens opening** on one end (where you point it)
@@ -116,16 +141,24 @@ A **camera module** (OV2640) solves this:
 - **Scan button** on top or front (thumb-accessible)
 - **USB-C port** on bottom for charging
 
-### 4.4 Power Budget (Rough Estimates)
+### 4.4 Power Budget (VERIFIED estimates)
 | State | Current Draw | Notes |
 |-------|-------------|-------|
 | Deep sleep | ~10uA | Device idle on keychain |
 | Standby (screen on, no camera) | ~20-30mA | Browsing palette |
-| Live preview (camera streaming) | ~100-150mA | Active scanning mode |
-| BLE transmitting | ~30-50mA | Syncing to phone |
+| Live preview (camera streaming) | ~180-280mA | Camera (~50mA) + CPU (~100mA) + display (~30mA) + BLE (~15mA) |
+| BLE advertising only | ~10-15mA | Intermittent TX bursts |
 
-With a 250mAh battery: ~1.5-2 hours of continuous scanning, or ~2-3 days of moderate use
-(a few scans per day + palette browsing). Acceptable for the form factor.
+**Battery life reality check (250mAh):**
+- Continuous scanning: **~45-75 minutes** (this is tight)
+- Moderate use (a few scans/day + palette browsing): **~1 day**
+- Deep sleep standby: weeks
+
+**Power-saving strategies (must implement):**
+- Camera OFF when not actively scanning (biggest power saver)
+- Display auto-dim/off after 10 seconds idle
+- BLE: use long connection intervals (500ms+) when idle
+- Consider 400mAh battery if enclosure size allows (doubles runtime)
 
 ---
 
@@ -293,31 +326,88 @@ app/
 
 ---
 
-## 8. Shopping List (Phase 1-3)
+## 8. Shopping List (Phase 1-3) — VERIFIED
 
-Order these ASAP — some ship in 1-3 days from Amazon, others take longer.
+Order these ASAP — most ship in 1-3 days from Amazon.
 
-| Item | Where to Buy | Est. Cost | Notes |
-|------|-------------|-----------|-------|
-| **Seeed XIAO ESP32S3 Sense** (includes camera) | Amazon / Seeed Studio | $14-18 | Best option: tiny, has built-in camera + mic, USB-C. All-in-one. |
-| **0.96" ST7735 TFT display** (80x160, SPI, color) | Amazon / AliExpress | $3-5 | Full RGB color capable. SPI interface = 4 wires. |
-| **EC11 rotary encoder** (with detents + push button) | Amazon (pack of 5) | $6-8 for 5 | Mechanical clicks built in. Some have a push-button on the shaft too. |
-| **Tactile push button** (quality, through-hole) | Amazon (assortment pack) | $5-7 for 100+ | Get an assortment, find the click feel you like best. |
-| **Breadboard + jumper wires** | Amazon | $8-10 | Half-size breadboard + male-to-male/female jumper wire kit. |
-| **USB-C cable** | You probably have one | $0 | For programming and charging the dev board. |
-| **LiPo battery 250mAh** (with JST connector) | Amazon / Adafruit | $5-7 | NOT needed for Phase 1-3 (dev board runs off USB). Buy when ready for Phase 6. |
+| # | Item | Link | Est. Cost | Critical Notes |
+|---|------|------|-----------|----------------|
+| 1 | **Seeed XIAO ESP32S3 Sense (Pre-Soldered)** | [Amazon](https://www.amazon.com/Seeed-Studio-XIAO-ESP32-Sense/dp/B0C69FFVHH) | ~$16 | **VERIFY** listing says "Sense" + "OV2640 camera" (or OV3660). Pre-soldered = pin headers attached = plugs into breadboard with zero soldering. If out of stock, the [non-pre-soldered version](https://www.amazon.com/Seeed-Studio-XIAO-ESP32S3-Sense/dp/B0C33N99BX) works but needs header pins soldered on. |
+| 2 | **0.96" ST7735 TFT Display** (80x160, 8-pin, SPI) | [Amazon](https://www.amazon.com/Rakstore-Display-80x160-ST7735-Drive/dp/B09WQSF1P8) | ~$4 | Must be the 8-pin breakout board version (not bare display). Verify it has pre-soldered pin headers in the product photos. 3.3V operation — direct compatible. |
+| 3 | **KY-040 Rotary Encoder Module** (NOT bare EC11) | [Amazon](https://www.amazon.com/WayinTop-Encoder-Potentiometer-Electronics-Projects/dp/B08728K3YB) | ~$7 | **Must be KY-040 breakout module** with 5 header pins (CLK, DT, SW, +, GND). Has built-in 10k pull-ups. Plugs directly into breadboard. A bare EC11 encoder WILL NOT fit a breadboard. |
+| 4 | **Tactile Push Buttons** (assortment) | [Amazon](https://www.amazon.com/Tactile-Momentary-Assortment-Kit-200-Switches/dp/B0723BG637) | ~$8 | 200pc assortment with 10 heights. Find the click feel you like. For final product, upgrade to Kailh/Alps micro switch. |
+| 5 | **Breadboard + Jumper Wire Kit** | [Amazon](https://www.amazon.com/Smraza-Breadboard-Resistors-Mega2560-Raspberry/dp/B01HRR7EBG) | ~$10 | Includes breadboard, male-to-male jumper wires, resistors, LEDs. Everything needed for prototyping. |
+| 6 | **USB-C data cable** | You probably have one | $0 | Must be a DATA cable, not charge-only. |
 
-**Phase 1-3 total: ~$35-48**
+**Phase 1-3 total: ~$45**
 
-### Optional but Recommended
-| Item | Cost | Why |
-|------|------|-----|
-| **Soldering iron kit** (if you don't have one) | $20-30 | Pinecil or cheap Amazon kit. Needed for headers + final assembly. |
-| **Colored objects for testing** | $0 | Pantone swatch book, paint chips from hardware store, or just use household items. |
+### Buy later (Phase 6+)
+| Item | Cost | Notes |
+|------|------|-------|
+| **LiPo battery 300-400mAh** (WITH protection circuit) | $5-7 | The XIAO has no low-voltage cutoff — use a protected cell. |
+| **Soldering iron** (if you don't have one) | $20-30 | Needed for final assembly. Not needed if you buy the pre-soldered XIAO. |
+
+### Gotchas to watch for
+- **ST7735 vs GC9106:** Some very cheap 80x160 displays use a GC9106 controller instead of ST7735. If the display shows cropped/offset content and no GREENTAB/REDTAB config fixes it, you may have a GC9106 clone. Buy from a listing with good reviews.
+- **OV3660 vs OV2640:** Seeed is transitioning to OV3660 cameras on newer Sense units. Both work with `esp_camera` library — no code change needed. OV3660 actually runs cooler.
 
 ---
 
-## 9. Business Model
+## 9. Assembly Guide (How to Actually Build It)
+
+### 9.1 Physical Layout
+
+The XIAO ESP32S3 Sense is 21x17.8mm — it uses 7 rows on a breadboard and straddles the
+center channel. The camera expansion board sits ON TOP (connected via B2B snap connector,
+press firmly until it clicks). Camera points straight up. Total height with camera: ~15mm.
+
+A half-size breadboard (400 tie points) has 30 rows. The XIAO uses 7, leaving 23 rows
+for the display, encoder, and button.
+
+### 9.2 Complete Wiring Table (14 jumper wires)
+
+```
+XIAO Pin  │ GPIO  │ Wire To               │ Component
+──────────┼───────┼───────────────────────┼──────────────
+3V3       │ --    │ VCC + BLK on display  │ ST7735 power + backlight
+GND       │ --    │ GND on display        │ ST7735 ground
+GND       │ --    │ GND on encoder module │ KY-040 ground
+GND       │ --    │ One leg of button     │ Scan button ground
+D0 (GPIO1)│ 1     │ Other leg of button   │ Scan button signal
+D1 (GPIO2)│ 2     │ CS on display         │ ST7735 chip select
+D2 (GPIO3)│ 3     │ CLK on encoder module │ KY-040 rotation A
+D3 (GPIO4)│ 4     │ DC on display         │ ST7735 data/command
+D4 (GPIO5)│ 5     │ RES on display        │ ST7735 reset
+D5 (GPIO6)│ 6     │ DT on encoder module  │ KY-040 rotation B
+D6(GPIO43)│ 43    │ SW on encoder module  │ KY-040 push button
+D8 (GPIO7)│ 7     │ SCL on display        │ ST7735 SPI clock
+D10(GPIO9)│ 9     │ SDA on display        │ ST7735 SPI data (MOSI)
+```
+
+**Tip:** Use the breadboard power rails. Run 3V3 → red rail, GND → blue rail.
+Then connect display VCC/BLK from red rail, all GNDs from blue rail. Keeps wiring clean.
+
+### 9.3 Testing Order (test one component at a time)
+
+1. **Blink test** — Just the XIAO, no external parts. Upload Blink sketch. LED blinks = board works.
+2. **Button test** — Wire button to D0 + GND. Read `digitalRead()` in serial monitor.
+3. **Display test** — Wire all 8 display connections. Upload `tft.fillScreen(TFT_RED)`. See red = display works.
+4. **Encoder test** — Wire encoder module. Print rotation count to serial. Twist and verify.
+5. **Camera test** — Snap on expansion board (no extra wires). Upload camera capture sketch. Check serial for "Camera initialized."
+6. **Integration** — Upload full firmware. All components work together.
+
+### 9.4 Top Beginner Mistakes to Avoid
+
+1. **VCC to 5V instead of 3V3** — The ST7735 is 3.3V. 5V can permanently damage it.
+2. **Missing encoder GND** — The KY-040 module has one GND pin. Must be connected or nothing works.
+3. **Swapping SDA/SCL (or DC/CS)** — Produces blank screen with no error message. Triple-check.
+4. **Loose jumper wires** — Wiggle each wire. If the component flickers, that wire is loose.
+5. **BLK pin unconnected** — Some displays default to backlight OFF. Always wire BLK to 3V3.
+6. **Camera board not clicked in** — The B2B connector needs a firm press until it clicks.
+
+---
+
+## 10. Business Model (unchanged)
 
 ### Revenue Streams
 1. **Hardware sale:** $40-50 per unit (BOM ~$18-25, gross margin ~$15-25 before labor/shipping)
@@ -341,26 +431,31 @@ Order these ASAP — some ship in 1-3 days from Amazon, others take longer.
 
 ---
 
-## 10. Open Questions (To Resolve During Build)
+## 11. Open Questions
 
-### Resolved
-- [x] ~~Does the rotary encoder's push button replace the scan button?~~ **No.** Dedicated scan button stays. Encoder push = secondary action only.
-- [x] ~~React Native vs Flutter?~~ **React Native / Expo.** Leverages existing JS/TS skills, better Expo tooling, mature Supabase SDK.
-- [x] ~~Color TFT vs mono OLED + RGB LED?~~ **Color TFT.** Cleaner single-surface design fits the TE-inspired aesthetic.
-- [x] ~~Color accuracy expectations?~~ **Genuinely accurate for creative work** with 3-layer calibration. Not lab-grade, but not "approximate vibes" either.
+### Resolved (10 of 15)
+- [x] Scan button vs encoder push → **Dedicated button.** TE design philosophy.
+- [x] React Native vs Flutter → **React Native / Expo.** Leverages JS/TS skills.
+- [x] Color TFT vs OLED + LED → **Color TFT.** Single-surface TE aesthetic.
+- [x] Color accuracy → **Genuinely accurate** with 3-layer calibration.
+- [x] D10/GPIO10 camera conflict → **No conflict.** D10=GPIO9, camera XCLK=GPIO10 (internal).
+- [x] D7 as SPI CS → **Does NOT work.** UART RX. Use D1/GPIO2 instead.
+- [x] BLE UUIDs → **Random 128-bit UUIDs.** Short UUIDs are SIG-reserved.
+- [x] Camera module → OV2640 or OV3660, both work. No code change.
+- [x] Bare EC11 → **KY-040 module** for breadboard. Bare EC11 won't fit.
+- [x] Battery → 250mAh = ~1hr active. Consider 400mAh for better runtime.
 
-### Still Open
-- [ ] Product name — needs to be memorable, short, evocative
-- [ ] Exact camera module — XIAO Sense has a built-in OV2640, test if quality is sufficient
-- [ ] Enclosure design — need to find a designer or learn basic CAD
-- [ ] FCC/CE implications — does BLE transmitter require certification for sale?
-- [ ] Scroll wheel physical integration — how to mount EC11 in a small enclosure
-- [ ] App store approval process timeline
-- [ ] Patent landscape — are there existing patents on handheld color picker devices?
+### Still Open (5)
+- [ ] Product name
+- [ ] Enclosure CAD design
+- [ ] FCC/CE certification requirements for BLE product sales
+- [ ] App store approval timeline
+- [ ] Patent landscape for handheld color picker devices
+- [ ] ST7735 GREENTAB vs REDTAB — test when display arrives
 
 ---
 
-## 11. Tech Stack Summary
+## 12. Tech Stack Summary
 
 | Layer | Technology | Why |
 |-------|-----------|-----|

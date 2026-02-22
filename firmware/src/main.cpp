@@ -6,11 +6,15 @@
 #include "ble_service.h"
 #include "color_names.h"
 
-// Pin definitions
-#define SCAN_BUTTON_PIN  D1
-#define ENCODER_CLK_PIN  D2
-#define ENCODER_DT_PIN   D3
-#define ENCODER_SW_PIN   D4  // encoder push button (secondary action)
+// ---- Pin definitions (VERIFIED against pins_arduino.h) ----
+// Display uses: D10(GPIO9), D8(GPIO7), D1(GPIO2), D3(GPIO4), D4(GPIO5)
+// These pins are defined in User_Setup.h for TFT_eSPI.
+//
+// Remaining pins for inputs:
+#define SCAN_BUTTON_PIN  1    // D0 = GPIO1
+#define ENCODER_CLK_PIN  3    // D2 = GPIO3
+#define ENCODER_DT_PIN   6    // D5 = GPIO6
+#define ENCODER_SW_PIN   43   // D6 = GPIO43 (encoder push = secondary action)
 
 // Device states
 enum DeviceState {
@@ -53,6 +57,7 @@ void loop() {
             if (scanPressed) {
                 // Capture the color
                 palette_save(color);
+                ble_notify_new_color(color); // notify phone only on capture
                 currentState = STATE_COLOR_CAPTURED;
                 Serial.printf("Captured: #%02X%02X%02X\n", color.r, color.g, color.b);
                 delay(200); // debounce
@@ -94,7 +99,4 @@ void loop() {
             break;
         }
     }
-
-    // BLE: sync palette to phone if connected
-    ble_update();
 }

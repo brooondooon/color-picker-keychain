@@ -8,8 +8,11 @@ void scroll_wheel_init(int clkPin, int dtPin, int swPin) {
     pinDT = dtPin;
     pinSW = swPin;
 
-    pinMode(pinCLK, INPUT);
-    pinMode(pinDT, INPUT);
+    // Use INPUT_PULLUP for all encoder pins.
+    // ESP32-S3 internal pull-ups (~45k) are sufficient for breadboard prototyping.
+    // If encoder is jumpy/unreliable, add external 10k pull-ups to 3.3V.
+    pinMode(pinCLK, INPUT_PULLUP);
+    pinMode(pinDT, INPUT_PULLUP);
     pinMode(pinSW, INPUT_PULLUP);
 
     lastCLKState = digitalRead(pinCLK);
